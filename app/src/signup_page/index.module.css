@@ -1,6 +1,8 @@
 @font-face {
   font-family: 'Priestacy';
-  src: url('../../assets/Priestacy.otf') format('opentype');
+  src: url('../../fonts/Priestacy.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
 }
 
 .page {
