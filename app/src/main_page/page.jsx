@@ -239,6 +239,7 @@ function generateFallbackAISummary(product) {
   };
 }
 
+function App() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [barcode, setBarcode] = useState('');
