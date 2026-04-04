@@ -677,10 +677,12 @@ body {
 }
 
 /* ===== DETAILED INFO ===== */
+.detailed-info {
   margin-top: 0;
 }
 
 /* ===== HEALTH SUMMARY ===== */
+.health-summary-section {
   margin-bottom: 2rem;
   padding: 2rem;
   background: white;
@@ -868,6 +870,7 @@ body {
 }
 
 /* ===== MACRO SECTION ===== */
+.macro-section {
   margin-bottom: 0;
   padding: 2rem;
   background: white;
@@ -1062,6 +1065,7 @@ body {
 }
 
 /* ===== ALERTS ===== */
+.alert {
   padding: 1.25rem 1.5rem;
   border-radius: 12px;
   margin-bottom: 1.5rem;
@@ -1089,6 +1093,7 @@ body {
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
   .header {
     padding: 1.5rem 1rem;
   }
@@ -1165,6 +1170,76 @@ body {
 
   .section-header h2 {
     font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .logo {
+    font-size: 1.5rem;
+  }
+
+  .tagline {
+    font-size: 0.75rem;
+  }
+
+  .hamburger {
+    width: 42px;
+    height: 42px;
+    gap: 3.5px;
+  }
+
+  .hamburger span {
+    width: 18px;
+    height: 2px;
+  }
+
+  .header-menu {
+    right: 0.75rem;
+  }
+
+  .user-menu {
+    min-width: 180px;
+    padding: 1rem;
+  }
+
+  .container {
+    padding: 1.25rem 0.75rem;
+  }
+
+  .barcode-input,
+  .btn {
+    font-size: 0.85rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .safety-badge {
+    padding: 1rem;
+  }
+
+  .score-circle {
+    width: 65px;
+    height: 65px;
+  }
+
+  .score-value {
+    font-size: 1.5rem;
+  }
+
+  .nutrition-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-header h2 {
+    font-size: 1.25rem;
   }
 }
 
