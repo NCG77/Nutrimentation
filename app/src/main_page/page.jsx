@@ -287,30 +287,43 @@ function App() {
     }
   };
 
-  const extractBarcodeFromImage = async (imageData) => {
+  const extractBarcodeFromImage = async (base64Data, mimeType = 'image/jpeg') => {
     try {
       setIsProcessing(true);
       setError('');
 
-      // Convert canvas image data to base64
-      const base64Image = imageData.split(',')[1] || imageData;
+      // Validate API key
+      if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+        setError('Gemini API key not configured. Please set NEXT_PUBLIC_GEMINI_API_KEY in your environment.');
+        setIsProcessing(false);
+        return;
+      }
 
       const prompt = `Look at this image and extract any barcode or product code numbers visible in it. 
       Return ONLY the numeric barcode code as a plain number with no other text or formatting. 
       If you see a barcode, code, or number, return just the number (e.g., "5901234123457").
-      If you cannot find any barcode or code, return "NOT_FOUND".`;
+      If you cannot find any barcode or code, return "NOT_FOUND".
+      
+      Important: Return ONLY the number or "NOT_FOUND", nothing else.`;
+
+      console.log('Sending image to Gemini for barcode extraction...');
 
       const result = await geminiModel.generateContent([
         {
           inlineData: {
-            mimeType: 'image/jpeg',
-            data: base64Image,
+            mimeType: mimeType,
+            data: base64Data,
           },
         },
-        prompt,
+        {
+          text: prompt,
+        },
       ]);
 
-      const extractedCode = result.response.text().trim();
+      const response = await result.response;
+      const extractedCode = response.text().trim();
+
+      console.log('Extracted barcode:', extractedCode);
 
       if (extractedCode === 'NOT_FOUND' || !extractedCode || extractedCode.length < 8) {
         setError('No barcode detected in image. Please try another photo or enter barcode manually.');
@@ -327,12 +340,24 @@ function App() {
         return;
       }
 
+      console.log('Cleaned barcode:', cleanCode);
       setBarcode(cleanCode);
+      
       // Automatically scan the extracted barcode
       await scanProduct(cleanCode);
     } catch (err) {
       console.error('Error extracting barcode:', err);
-      setError('Failed to extract barcode from image. Please try again or enter manually.');
+      
+      // Provide specific error messages
+      if (err.message?.includes('API key') || err.status === 401) {
+        setError('Gemini API authentication failed. Check your API key.');
+      } else if (err.message?.includes('quota') || err.status === 429) {
+        setError('API quota exceeded. Please try again later.');
+      } else if (err.message?.includes('INVALID_ARGUMENT')) {
+        setError('Invalid image format. Please try a clearer photo.');
+      } else {
+        setError(`Failed to extract barcode: ${err.message || 'Unknown error'}. Please try again or enter manually.`);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -343,7 +368,10 @@ function App() {
       const context = canvasRef.current.getContext('2d');
       context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
       const imageData = canvasRef.current.toDataURL('image/jpeg');
-      await extractBarcodeFromImage(imageData);
+      
+      // Extract base64 from data URL
+      const base64Data = imageData.split(',')[1];
+      await extractBarcodeFromImage(base64Data, 'image/jpeg');
     }
   };
 
@@ -357,14 +385,28 @@ function App() {
 
       const reader = new FileReader();
       reader.onload = async (event) => {
-        const imageData = event.target?.result;
-        if (imageData && typeof imageData === 'string') {
-          await extractBarcodeFromImage(imageData);
+        try {
+          const base64String = event.target?.result;
+          if (!base64String || typeof base64String !== 'string') {
+            throw new Error('Failed to read file');
+          }
+
+          // Extract base64 data (remove data URL prefix)
+          const base64Data = base64String.includes(',') 
+            ? base64String.split(',')[1] 
+            : base64String;
+
+          await extractBarcodeFromImage(base64Data, 'image/jpeg');
+        } catch (error) {
+          console.error('Error in file reader:', error);
+          setError('Failed to process image file. Please try again.');
+          setIsProcessing(false);
         }
       };
+
       reader.readAsDataURL(file);
     } catch (err) {
-      console.error('Error processing file:', err);
+      console.error('Error setting up file upload:', err);
       setError('Failed to process image. Please try again.');
       setIsProcessing(false);
     }
