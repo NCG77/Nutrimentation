@@ -530,6 +530,42 @@ body {
   object-fit: cover;
 }
 
+.camera-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  width: 100%;
+}
+
+.divider-text {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-upload {
+  cursor: pointer;
+}
+
+.camera-controls {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.camera-controls .btn {
+  flex: 1;
+  min-width: 140px;
+  margin: 0;
+}
+
 .products-grid {
   display: grid;
   grid-template-columns: 1fr;

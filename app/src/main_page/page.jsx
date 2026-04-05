@@ -250,7 +250,9 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (loading) {
     return (
@@ -285,11 +287,86 @@ function App() {
     }
   };
 
-  const captureFrame = () => {
+  const extractBarcodeFromImage = async (imageData) => {
+    try {
+      setIsProcessing(true);
+      setError('');
+
+      // Convert canvas image data to base64
+      const base64Image = imageData.split(',')[1] || imageData;
+
+      const prompt = `Look at this image and extract any barcode or product code numbers visible in it. 
+      Return ONLY the numeric barcode code as a plain number with no other text or formatting. 
+      If you see a barcode, code, or number, return just the number (e.g., "5901234123457").
+      If you cannot find any barcode or code, return "NOT_FOUND".`;
+
+      const result = await geminiModel.generateContent([
+        {
+          inlineData: {
+            mimeType: 'image/jpeg',
+            data: base64Image,
+          },
+        },
+        prompt,
+      ]);
+
+      const extractedCode = result.response.text().trim();
+
+      if (extractedCode === 'NOT_FOUND' || !extractedCode || extractedCode.length < 8) {
+        setError('No barcode detected in image. Please try another photo or enter barcode manually.');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Clean the extracted code (remove any non-numeric characters)
+      const cleanCode = extractedCode.replace(/\D/g, '');
+
+      if (cleanCode.length < 8) {
+        setError('Invalid barcode detected. Please try another photo.');
+        setIsProcessing(false);
+        return;
+      }
+
+      setBarcode(cleanCode);
+      // Automatically scan the extracted barcode
+      await scanProduct(cleanCode);
+    } catch (err) {
+      console.error('Error extracting barcode:', err);
+      setError('Failed to extract barcode from image. Please try again or enter manually.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const captureFrame = async () => {
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext('2d');
       context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-      alert('To detect barcodes, integrate a library like jsbarcode-detector or ml-kit');
+      const imageData = canvasRef.current.toDataURL('image/jpeg');
+      await extractBarcodeFromImage(imageData);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsProcessing(true);
+      setError('');
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const imageData = event.target?.result;
+        if (imageData && typeof imageData === 'string') {
+          await extractBarcodeFromImage(imageData);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error processing file:', err);
+      setError('Failed to process image. Please try again.');
+      setIsProcessing(false);
     }
   };
 
@@ -411,19 +488,44 @@ function App() {
                 <div className="camera-section">
                   <h3 className="section-subtitle">Or use camera</h3>
                   {!isCameraActive ? (
-                    <button onClick={startCamera} className="btn btn-secondary">
-                      Open Camera
-                    </button>
+                    <div className="camera-options">
+                      <button onClick={startCamera} className="btn btn-secondary">
+                        📷 Open Camera
+                      </button>
+                      <span className="divider-text">or</span>
+                      <label htmlFor="file-upload" className="btn btn-secondary btn-upload">
+                        📁 Upload Photo
+                      </label>
+                      <input
+                        id="file-upload"
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        style={{ display: 'none' }}
+                        disabled={isProcessing}
+                      />
+                    </div>
                   ) : (
                     <div className="camera-wrapper">
                       <video ref={videoRef} autoPlay playsInline />
                       <canvas ref={canvasRef} style={{ display: 'none' }} width="640" height="480" />
-                      <button onClick={captureFrame} className="btn btn-capture">
-                        Capture
-                      </button>
-                      <button onClick={stopCamera} className="btn btn-close">
-                        Close
-                      </button>
+                      <div className="camera-controls">
+                        <button 
+                          onClick={captureFrame} 
+                          className="btn btn-capture"
+                          disabled={isProcessing}
+                        >
+                          {isProcessing ? '⏳ Processing...' : '📸 Click Photo'}
+                        </button>
+                        <button 
+                          onClick={stopCamera} 
+                          className="btn btn-close"
+                          disabled={isProcessing}
+                        >
+                          ✕ Close
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
