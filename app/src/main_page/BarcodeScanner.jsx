@@ -1,6 +1,6 @@
 "use client";
 
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5QrcodeScanner, Html5Qrcode } from "html5-qrcode";
 import { useEffect, useRef, useState } from "react";
 
 export default function BarcodeScanner({ onScan, onClose }) {
@@ -11,10 +11,21 @@ export default function BarcodeScanner({ onScan, onClose }) {
   useEffect(() => {
     const initScanner = async () => {
       try {
-        // Check camera permission first
-        const devices = await Html5QrcodeScanner.getCameras();
+        // Request camera permission explicitly
+        try {
+          await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" } 
+          });
+        } catch (permissionError) {
+          setStatus("Camera permission denied. Please allow camera access in settings.");
+          console.error("Permission error:", permissionError);
+          return;
+        }
+
+        // Check available cameras
+        const devices = await Html5Qrcode.getCameras();
         if (!devices || devices.length === 0) {
-          setStatus("No camera found. Please enable camera access.");
+          setStatus("No camera found on this device.");
           return;
         }
 
