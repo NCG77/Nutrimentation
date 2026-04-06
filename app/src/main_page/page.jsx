@@ -283,7 +283,6 @@ function App() {
       setIsProcessing(true);
       setError('');
 
-      // Validate API key
       if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
         setError('Gemini API key not configured. Please set NEXT_PUBLIC_GEMINI_API_KEY in your environment.');
         setIsProcessing(false);
@@ -322,7 +321,6 @@ function App() {
         return;
       }
 
-      // Clean the extracted code (remove any non-numeric characters)
       const cleanCode = extractedCode.replace(/\D/g, '');
 
       if (cleanCode.length < 8) {
@@ -334,7 +332,6 @@ function App() {
       console.log('Cleaned barcode:', cleanCode);
       setBarcode(cleanCode);
       
-      // Automatically scan the extracted barcode
       await scanProduct(cleanCode);
     } catch (err) {
       console.error('Error extracting barcode:', err);
@@ -566,8 +563,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
   if (detailed) {
     return (
       <div className="modern-container">
-      <div className="modern-container">
-        {/* 🔥 HERO CARD */}
         <div className="hero-card">
           <div className="hero-text">
             <p className="subtitle">Product Analysis</p>
@@ -580,7 +575,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           </div>
         </div>
 
-        {/* 🧠 AI SUMMARY */}
         {aiAnalysis && (
           <div className="card soft">
             <h3>AI Insight</h3>
@@ -588,7 +582,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           </div>
         )}
 
-        {/* 📊 KEY METRICS BUBBLES */}
         <div className="metrics-bubble-grid">
           {renderBubble('Sugar', product.nutriments?.['sugars_100g'], 'g')}
           {renderBubble('Protein', product.nutriments?.['protein_100g'], 'g')}
@@ -596,7 +589,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           {renderBubble('Fiber', product.nutriments?.['fiber_100g'], 'g')}
         </div>
 
-        {/* 🎯 STRENGTHS & CONCERNS */}
         {(aiAnalysis?.strengths || aiAnalysis?.concerns) && (
           <div className="card">
             <h3>Key Insights</h3>
@@ -623,7 +615,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           </div>
         )}
 
-        {/* 📋 DETAILED NUTRITION */}
         <div className="card">
           <h3>Complete Nutrition</h3>
           <div className="nutrition-compact-grid">
@@ -636,7 +627,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           </div>
         </div>
 
-        {/* 🧾 INGREDIENTS */}
         {product.ingredients && product.ingredients !== 'Not available' && (
           <div className="card light">
             <h3>Ingredients</h3>
@@ -644,7 +634,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           </div>
         )}
 
-        {/* ⚠️ WARNINGS */}
         {product.warnings && product.warnings.length > 0 && (
           <div className="card warning-card">
             <h3>⚠ Health Warnings</h3>
@@ -656,7 +645,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           </div>
         )}
 
-        {/* BARCODE */}
         <div className="product-footer-compact">
           <span className="barcode-compact">Barcode: {product.barcode}</span>
         </div>
@@ -664,7 +652,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
     );
   }
 
-  // Non-detailed view (original)
   const tagColor = getTagColor(product.tag);
   return (
     <div className="product-card">
