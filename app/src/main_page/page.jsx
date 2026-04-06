@@ -558,14 +558,119 @@ function App() {
 function ProductCard({ product, detailed = false, aiAnalysis = null }) {
   if (!product) return null;
 
-  const tagColor = getTagColor(product.tag);
+  const scoreColor = 
+    product.score >= 70 ? '#10b981' :
+    product.score >= 40 ? '#f59e0b' :
+    '#ef4444';
 
+  if (detailed) {
+    return (
+      <div className="modern-container">
+      <div className="modern-container">
+        {/* 🔥 HERO CARD */}
+        <div className="hero-card">
+          <div className="hero-text">
+            <p className="subtitle">Product Analysis</p>
+            <h2>{product.name}</h2>
+            <p className="hero-brand">{product.brand}</p>
+          </div>
+          <div className="score-circle-hero" style={{ background: scoreColor }}>
+            {Math.round(product.score)}
+            <span className="score-percent">%</span>
+          </div>
+        </div>
+
+        {/* 🧠 AI SUMMARY */}
+        {aiAnalysis && (
+          <div className="card soft">
+            <h3>AI Insight</h3>
+            <p className="ai-insight-text">{aiAnalysis.summary || 'Analyzing product...'}</p>
+          </div>
+        )}
+
+        {/* 📊 KEY METRICS BUBBLES */}
+        <div className="metrics-bubble-grid">
+          {renderBubble('Sugar', product.nutriments?.['sugars_100g'], 'g')}
+          {renderBubble('Protein', product.nutriments?.['protein_100g'], 'g')}
+          {renderBubble('Fat', product.nutriments?.['fat_100g'], 'g')}
+          {renderBubble('Fiber', product.nutriments?.['fiber_100g'], 'g')}
+        </div>
+
+        {/* 🎯 STRENGTHS & CONCERNS */}
+        {(aiAnalysis?.strengths || aiAnalysis?.concerns) && (
+          <div className="card">
+            <h3>Key Insights</h3>
+            {aiAnalysis?.strengths && aiAnalysis.strengths.length > 0 && (
+              <div className="insight-group">
+                <p className="insight-label">✓ Strengths</p>
+                <ul className="insight-list">
+                  {aiAnalysis.strengths.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {aiAnalysis?.concerns && aiAnalysis.concerns.length > 0 && (
+              <div className="insight-group">
+                <p className="insight-label">⚠ Concerns</p>
+                <ul className="insight-list">
+                  {aiAnalysis.concerns.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 📋 DETAILED NUTRITION */}
+        <div className="card">
+          <h3>Complete Nutrition</h3>
+          <div className="nutrition-compact-grid">
+            {product.nutriments && Object.entries(product.nutriments).map(([key, value]) => (
+              <div key={key} className="nutrition-compact-item">
+                <span className="nutri-compact-label">{formatNutrimentLabel(key)}</span>
+                <span className="nutri-compact-value">{value.toFixed(1)}{getUnit(key)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 🧾 INGREDIENTS */}
+        {product.ingredients && product.ingredients !== 'Not available' && (
+          <div className="card light">
+            <h3>Ingredients</h3>
+            <p className="ingredients-compact">{product.ingredients}</p>
+          </div>
+        )}
+
+        {/* ⚠️ WARNINGS */}
+        {product.warnings && product.warnings.length > 0 && (
+          <div className="card warning-card">
+            <h3>⚠ Health Warnings</h3>
+            <ul className="warning-compact-list">
+              {product.warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* BARCODE */}
+        <div className="product-footer-compact">
+          <span className="barcode-compact">Barcode: {product.barcode}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Non-detailed view (original)
+  const tagColor = getTagColor(product.tag);
   return (
-    <div className={`product-card ${detailed ? 'detailed' : ''}`}>
+    <div className="product-card">
       {product.image && (
         <img src={product.image} alt={product.name} className="product-image" />
       )}
-
       <div className="product-header">
         <h3>{product.name}</h3>
         <div className="product-meta">
@@ -573,7 +678,6 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           <span className="category">{product.category}</span>
         </div>
       </div>
-
       <div className="safety-badge" style={{ borderColor: tagColor }}>
         <div className="score-circle" style={{ backgroundColor: tagColor }}>
           <span className="score-value">{Math.round(product.score)}</span>
@@ -585,87 +689,17 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {detailed && (
-        <div className="detailed-info">
-          <section className="health-summary-section">
-            <div className="summary-header">
-              <h4>Health Overview</h4>
-              <div className="health-badge">{getHealthRating(product)}</div>
-            </div>
-            <p className="health-description">{getHealthDescription(product)}</p>
-          </section>
-
-          <section className="ai-summary-section">
-            <div className="ai-header">
-              <h4>AI Nutritional Summary</h4>
-            </div>
-            <div className="ai-analysis">
-              {renderAISummary(product, aiAnalysis)}
-            </div>
-          </section>
-
-          <section className="health-metrics-section">
-            <h4>Nutritional Breakdown</h4>
-            <div className="metrics-grid">
-              {getHealthMetrics(product).map((metric) => (
-                <div key={metric.label} className="metric-card">
-                  <div className="metric-label">{metric.label}</div>
-                  <div className="metric-value">{metric.value}</div>
-                  <div className={`metric-status ${metric.status}`}>{metric.status}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="macro-section">
-            <h4>Macronutrient Balance</h4>
-            <div className="macro-breakdown">
-              {renderMacroAnalysis(product)}
-            </div>
-          </section>
-
-          <section className="nutrition-section">
-            <h4>Detailed Nutrition Facts</h4>
-            <p className="section-note">Per 100 grams</p>
-            <div className="nutrition-grid">
-              {product.nutriments && Object.entries(product.nutriments).map(([key, value]) => (
-                <div key={key} className="nutrition-item">
-                  <span className="nutri-label">{formatNutrimentLabel(key)}</span>
-                  <span className="nutri-value">{value.toFixed(1)}{getUnit(key)}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {product.warnings && product.warnings.length > 0 && (
-            <section className="warnings-section">
-              <h4>Health Warnings</h4>
-              <ul className="warnings-list">
-                {product.warnings.map((warning, idx) => (
-                  <li key={idx}>{warning}</li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          <section className="ingredients-section">
-            <h4>Ingredients</h4>
-            <p className="ingredients-text">{product.ingredients}</p>
-          </section>
-
-          {product.allergens && product.allergens !== 'Not specified' && (
-            <section className="allergens-section">
-              <h4>Allergens</h4>
-              <p>{product.allergens}</p>
-            </section>
-          )}
-
-          <div className="product-footer">
-            <span className="barcode">Barcode: {product.barcode}</span>
-          </div>
-        </div>
-      )}
+function renderBubble(label, value, unit) {
+  if (value === undefined || value === null) return null;
+  return (
+    <div className="bubble">
+      <span className="bubble-value">{value.toFixed(1)}</span>
+      <span className="bubble-unit">{unit}</span>
+      <p className="bubble-label">{label}</p>
     </div>
   );
 }
