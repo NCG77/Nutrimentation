@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import Login from '../login_page/page';
+import BarcodeScanner from './BarcodeScanner';
 import './index.css';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -248,10 +249,10 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [isCameraActive, setIsCameraActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (loading) {
@@ -267,24 +268,17 @@ function App() {
   }
 
   const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setIsCameraActive(true);
-      }
-    } catch (err) {
-      setError('Camera access denied. Please enable camera permissions.');
-    }
+    setShowScanner(true);
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
-      setIsCameraActive(false);
-    }
+    setShowScanner(false);
+  };
+
+  const handleScan = (barcode) => {
+    setBarcode(barcode);
+    setShowScanner(false);
+    scanProduct(barcode);
   };
 
   const extractBarcodeFromImage = async (base64Data, mimeType = 'image/jpeg') => {
@@ -360,18 +354,6 @@ function App() {
       }
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const captureFrame = async () => {
-    if (videoRef.current && canvasRef.current) {
-      const context = canvasRef.current.getContext('2d');
-      context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-      const imageData = canvasRef.current.toDataURL('image/jpeg');
-      
-      // Extract base64 from data URL
-      const base64Data = imageData.split(',')[1];
-      await extractBarcodeFromImage(base64Data, 'image/jpeg');
     }
   };
 
@@ -529,10 +511,10 @@ function App() {
 
                 <div className="camera-section">
                   <h3 className="section-subtitle">Or use camera</h3>
-                  {!isCameraActive ? (
+                  {!showScanner ? (
                     <div className="camera-options">
                       <button onClick={startCamera} className="btn btn-secondary">
-                        📷 Open Camera
+                        📷 Scan Barcode
                       </button>
                       <span className="divider-text">or</span>
                       <label htmlFor="file-upload" className="btn btn-secondary btn-upload">
@@ -549,26 +531,10 @@ function App() {
                       />
                     </div>
                   ) : (
-                    <div className="camera-wrapper">
-                      <video ref={videoRef} autoPlay playsInline />
-                      <canvas ref={canvasRef} style={{ display: 'none' }} width="640" height="480" />
-                      <div className="camera-controls">
-                        <button 
-                          onClick={captureFrame} 
-                          className="btn btn-capture"
-                          disabled={isProcessing}
-                        >
-                          {isProcessing ? '⏳ Processing...' : '📸 Click Photo'}
-                        </button>
-                        <button 
-                          onClick={stopCamera} 
-                          className="btn btn-close"
-                          disabled={isProcessing}
-                        >
-                          ✕ Close
-                        </button>
-                      </div>
-                    </div>
+                    <BarcodeScanner
+                      onScan={handleScan}
+                      onClose={() => setShowScanner(false)}
+                    />
                   )}
                 </div>
 
