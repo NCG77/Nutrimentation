@@ -84,11 +84,15 @@ export default function BarcodeScanner({ onScan, onClose }) {
         <span className="qr-status-text">{status}</span>
       </div>
       
-      <div id="qr-reader" className="qr-reader-container"></div>
-      
-      <div className="qr-frame-overlay">
-        <div className="qr-frame"></div>
-        <p className="qr-instructions">Align barcode within the frame</p>
+      <div style={{ position: "relative" }} className="scanner-container">
+        <div id="qr-reader" className="qr-reader-container"></div>
+        
+        <div className="scanner-overlay">
+          <div className="scanner-box">
+            <div className="scan-line"></div>
+          </div>
+          <p className="scan-text">Align barcode within frame</p>
+        </div>
       </div>
 
       <div className="qr-controls">
