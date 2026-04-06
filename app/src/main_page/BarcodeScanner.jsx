@@ -20,17 +20,22 @@ export default function BarcodeScanner({ onScan, onClose }) {
           return;
         }
 
-        const cameraId = devices[0].id;
-
+        // Force back camera on mobile
         await html5QrCode.start(
-          cameraId,
+          { facingMode: "environment" },
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
           },
           (decodedText) => {
-            if (navigator.vibrate) navigator.vibrate(100);
-            setStatus("✅ Scanned!");
+            if (navigator.vibrate) navigator.vibrate(200);
+            setStatus("✅ Barcode detected!");
+
+            // Flash effect feedback
+            document.body.style.background = "#00ffcc";
+            setTimeout(() => {
+              document.body.style.background = "";
+            }, 100);
 
             stopScanner();
             onScan(decodedText);
@@ -65,9 +70,16 @@ export default function BarcodeScanner({ onScan, onClose }) {
     <div className="scanner-ui">
       <p>{status}</p>
 
-      <div id="reader" style={{ width: "100%" }}></div>
+      <div className="scanner-container">
+        <div id="reader"></div>
+        
+        <div className="overlay">
+          <div className="frame"></div>
+          <p className="hint">Align barcode inside the box</p>
+        </div>
+      </div>
 
-      <button onClick={() => { stopScanner(); onClose(); }}>
+      <button onClick={() => { stopScanner(); onClose(); }} className="qr-close-btn">
         Close
       </button>
     </div>

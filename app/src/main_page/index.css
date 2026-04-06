@@ -1431,6 +1431,25 @@ body {
   }
 }
 
+/* ===== SCANNER UI ===== */
+.scanner-ui {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.scanner-ui > p {
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0;
+}
+
 /* ===== QR CODE SCANNER ===== */
 .qr-scanner-wrapper {
   position: relative;
@@ -1529,15 +1548,18 @@ body {
 /* ===== SCANNER OVERLAY ===== */
 .scanner-container {
   position: relative;
-  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  margin: auto;
 }
 
-/* dark overlay */
-.scanner-overlay {
+#reader video {
+  border-radius: 16px;
+}
+
+.overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1545,58 +1567,42 @@ body {
   pointer-events: none;
 }
 
-/* scanning box */
-.scanner-box {
+.frame {
   width: 260px;
   height: 160px;
-  border: 2px solid #c9a961;
+  border: 3px solid #00ffcc;
   border-radius: 12px;
   position: relative;
-  background: transparent;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 20px rgba(0, 255, 200, 0.5);
 }
 
-/* corner highlights */
-.scanner-box::before,
-.scanner-box::after {
+/* animated scanning line */
+.frame::after {
   content: "";
   position: absolute;
-  width: 30px;
-  height: 30px;
-  border: 3px solid #c9a961;
-}
-
-.scanner-box::before {
-  top: -2px;
-  left: -2px;
-  border-right: none;
-  border-bottom: none;
-}
-
-.scanner-box::after {
-  bottom: -2px;
-  right: -2px;
-  border-left: none;
-  border-top: none;
-}
-
-/* animated scan line */
-.scan-line {
-  position: absolute;
+  left: 0;
   width: 100%;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, #c9a961, transparent);
-  animation: scanMove 2s linear infinite;
+  height: 2px;
+  background: #00ffcc;
+  animation: scanLine 2s infinite;
 }
 
-/* animation */
-@keyframes scanMove {
+@keyframes scanLine {
   0% {
-    top: 0%;
+    top: 0;
   }
   100% {
     top: 100%;
   }
+}
+
+.hint {
+  margin-top: 12px;
+  color: white;
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 6px 12px;
+  border-radius: 8px;
 }
 
 /* text */
