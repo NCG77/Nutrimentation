@@ -6,10 +6,6 @@ import { useAuth } from '../../context/AuthContext';
 import Login from '../login_page/page';
 import BarcodeScanner from './BarcodeScanner';
 import './index.css';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
-const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 function analyzeProductHealth(product) {
   let score = 100;
@@ -137,57 +133,29 @@ function analyzeProductHealth(product) {
 
 async function generateAISummaryWithGemini(product) {
   try {
-    if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY not configured');
+    // Optimization: Only call Gemini if product has warnings or lower score
+    if (product.score >= 70 && (!product.warnings || product.warnings.length === 0)) {
+      return generateFallbackAISummary(product);
     }
 
     const nutriments = product.nutriments || {};
     
-    const productSummary = `
-      Product: ${product.name}
-      Brand: ${product.brand}
-      Score: ${product.score}/100
-      Category: ${product.category}
-      
-      Nutrition per 100g:
-      - Calories: ${nutriments['energy-kcal_100g'] || 'N/A'} kcal
-      - Protein: ${nutriments['protein_100g'] || 'N/A'}g
-      - Carbs: ${nutriments['carbohydrates_100g'] || 'N/A'}g
-      - Sugar: ${nutriments['sugars_100g'] || 'N/A'}g
-      - Fat: ${nutriments['fat_100g'] || 'N/A'}g
-      - Saturated Fat: ${nutriments['saturated-fat_100g'] || 'N/A'}g
-      - Sodium: ${nutriments['sodium_100g'] || 'N/A'}mg
-      - Fiber: ${nutriments['fiber_100g'] || 'N/A'}g
-      
-      Ingredients: ${product.ingredients || 'Not available'}
-      Warnings: ${product.warnings && product.warnings.length > 0 ? product.warnings.join(', ') : 'None'}
-    `;
+    // SHORTENED PROMPT - 70% fewer tokens
+    const productSummary = `Name: ${product.name}, Brand: ${product.brand}, Score: ${product.score}/100\nCalories: ${nutriments['energy-kcal_100g'] || 0}, Protein: ${nutriments['protein_100g'] || 0}g, Sugar: ${nutriments['sugars_100g'] || 0}g, Fat: ${nutriments['fat_100g'] || 0}g, Sodium: ${nutriments['sodium_100g'] || 0}mg\nWarnings: ${product.warnings && product.warnings.length > 0 ? product.warnings.join(', ') : 'None'}`;
 
-    const prompt = `You are a nutritional health analyst. Analyze this product and provide a JSON response with the following structure:
-    {
-      "summary": "A 1-2 sentence overall assessment",
-      "strengths": ["strength1", "strength2", "strength3"],
-      "concerns": ["concern1", "concern2"],
-      "recommendation": "Brief recommendation for consumption",
-      "highlights": ["highlight1", "highlight2"],
-      "healthScore": "number 0-100"
-    }
-    
-    Product Details:
-    ${productSummary}
-    
-    Provide ONLY valid JSON, no other text.`;
+    const prompt = `Analyze this product and return ONLY this JSON (no other text):\n{"summary":"1-2 sentence assessment","strengths":["s1","s2"],"concerns":["c1","c2"],"recommendation":"brief advice"}\n\nProduct: ${productSummary}`;
 
-    const result = await geminiModel.generateContent(prompt);
-    const responseText = result.response.text();
+    // Call backend API instead of direct Gemini call for security
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product, prompt })
+    });
+
+    if (!response.ok) throw new Error('API request failed');
     
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Could not parse JSON response');
-    }
-    
-    const aiAnalysis = JSON.parse(jsonMatch[0]);
-    return aiAnalysis;
+    const data = await response.json();
+    return data.analysis || generateFallbackAISummary(product);
 
   } catch (error) {
     console.error('Error generating AI summary:', error.message);
@@ -239,6 +207,9 @@ function generateFallbackAISummary(product) {
     healthScore: Math.max(0, product.score)
   };
 }
+
+// Cache for AI analysis results to avoid duplicate API calls
+const aiAnalysisCache = {};
 
 function App() {
   const { user, loading, logout } = useAuth();
@@ -389,6 +360,9 @@ function App() {
   };
 
   const scanProduct = async (code) => {
+    // Rate limiting - prevent multiple simultaneous requests
+    if (isProcessing) return;
+    
     if (!code.trim()) {
       setError('Please enter a barcode');
       return;
@@ -397,6 +371,7 @@ function App() {
     setError('');
     setProduct(null);
     setAiAnalysis(null);
+    setIsProcessing(true);
 
     try {
       const response = await fetch(
@@ -414,13 +389,24 @@ function App() {
       setProduct(analyzedProduct);
       stopCamera();
 
-      const analysis = await generateAISummaryWithGemini(analyzedProduct);
-      if (analysis) {
-        setAiAnalysis(analysis);
+      // Add delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      // Check cache first before calling Gemini
+      if (aiAnalysisCache[code]) {
+        setAiAnalysis(aiAnalysisCache[code]);
+      } else {
+        const analysis = await generateAISummaryWithGemini(analyzedProduct);
+        if (analysis) {
+          aiAnalysisCache[code] = analysis;
+          setAiAnalysis(analysis);
+        }
       }
     } catch (err) {
       setError('Failed to fetch product data. Please check your internet connection.');
       console.error('Error:', err);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -487,12 +473,14 @@ function App() {
                     onChange={handleBarcodeInput}
                     className="barcode-input"
                     autoFocus
+                    disabled={isProcessing}
                   />
                   <button 
                     onClick={() => scanProduct(barcode)}
                     className="btn btn-primary"
+                    disabled={isProcessing}
                   >
-                    Search
+                    {isProcessing ? 'Processing...' : 'Search'}
                   </button>
                 </div>
 
@@ -502,11 +490,11 @@ function App() {
                   <h3 className="section-subtitle">Or use camera</h3>
                   {!showScanner ? (
                     <div className="camera-options">
-                      <button onClick={startCamera} className="btn btn-secondary">
+                      <button onClick={startCamera} className="btn btn-secondary" disabled={isProcessing}>
                         📷 Scan Barcode
                       </button>
                       <span className="divider-text">or</span>
-                      <label htmlFor="file-upload" className="btn btn-secondary btn-upload">
+                      <label htmlFor="file-upload" className="btn btn-secondary btn-upload" style={{pointerEvents: isProcessing ? 'none' : 'auto', opacity: isProcessing ? 0.5 : 1}}>
                         📁 Upload Photo
                       </label>
                       <input
