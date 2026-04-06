@@ -246,12 +246,9 @@ function App() {
   const [barcode, setBarcode] = useState('');
   const [product, setProduct] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState(null);
-  const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -400,7 +397,6 @@ function App() {
       return;
     }
 
-    setIsScanning(true);
     setError('');
     setProduct(null);
     setAiAnalysis(null);
@@ -414,7 +410,6 @@ function App() {
 
       if (data.status === 0) {
         setError('Product not found in database');
-        setIsScanning(false);
         return;
       }
 
@@ -429,8 +424,6 @@ function App() {
     } catch (err) {
       setError('Failed to fetch product data. Please check your internet connection.');
       console.error('Error:', err);
-    } finally {
-      setIsScanning(false);
     }
   };
 
@@ -500,10 +493,9 @@ function App() {
                   />
                   <button 
                     onClick={() => scanProduct(barcode)}
-                    disabled={isScanning}
                     className="btn btn-primary"
                   >
-                    {isScanning ? 'Scanning...' : 'Search'}
+                    Search
                   </button>
                 </div>
 
