@@ -254,35 +254,20 @@ function App() {
       setIsProcessing(true);
       setError('');
 
-      if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-        setError('Gemini API key not configured. Please set NEXT_PUBLIC_GEMINI_API_KEY in your environment.');
-        setIsProcessing(false);
-        return;
+      console.log('Sending image to backend for barcode extraction...');
+
+      const response = await fetch('/api/extract-barcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64Data, mimeType })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.statusText}`);
       }
 
-      const prompt = `Look at this image and extract any barcode or product code numbers visible in it. 
-      Return ONLY the numeric barcode code as a plain number with no other text or formatting. 
-      If you see a barcode, code, or number, return just the number (e.g., "5901234123457").
-      If you cannot find any barcode or code, return "NOT_FOUND".
-      
-      Important: Return ONLY the number or "NOT_FOUND", nothing else.`;
-
-      console.log('Sending image to Gemini for barcode extraction...');
-
-      const result = await geminiModel.generateContent([
-        {
-          inlineData: {
-            mimeType: mimeType,
-            data: base64Data,
-          },
-        },
-        {
-          text: prompt,
-        },
-      ]);
-
-      const response = await result.response;
-      const extractedCode = response.text().trim();
+      const data = await response.json();
+      const extractedCode = data.barcode?.trim();
 
       console.log('Extracted barcode:', extractedCode);
 
@@ -309,10 +294,10 @@ function App() {
       
       // Provide specific error messages
       if (err.message?.includes('API key') || err.status === 401) {
-        setError('Gemini API authentication failed. Check your API key.');
+        setError('API authentication failed. Please contact support.');
       } else if (err.message?.includes('quota') || err.status === 429) {
         setError('API quota exceeded. Please try again later.');
-      } else if (err.message?.includes('INVALID_ARGUMENT')) {
+      } else if (err.message?.includes('Failed to extract')) {
         setError('Invalid image format. Please try a clearer photo.');
       } else {
         setError(`Failed to extract barcode: ${err.message || 'Unknown error'}. Please try again or enter manually.`);
@@ -389,8 +374,8 @@ function App() {
       setProduct(analyzedProduct);
       stopCamera();
 
-      // Add delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Add delay to avoid rate limiting (1500ms for safer API quotas)
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       // Check cache first before calling Gemini
       if (aiAnalysisCache[code]) {
