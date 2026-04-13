@@ -23,16 +23,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize session from storage on mount
   useEffect(() => {
     const initializeSession = async () => {
       try {
-        // Try to restore session from localStorage/Capacitor storage
         const storedUser = localStorage.getItem('user');
         const storedToken = localStorage.getItem('authToken');
         
         if (storedUser && storedToken) {
-          // Verify token is still valid with backend
           const response = await fetch(
             process.env.REACT_APP_API_URL + '/auth/verify',
             {
@@ -43,7 +40,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (response.ok) {
             setUser(JSON.parse(storedUser));
           } else {
-            // Token expired
             localStorage.removeItem('user');
             localStorage.removeItem('authToken');
           }
@@ -75,7 +71,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const data = await response.json();
       
-      // Store user and token
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('authToken', data.token);
       
@@ -89,7 +84,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const token = localStorage.getItem('authToken');
       
-      // Notify backend of logout
       if (token) {
         await fetch(process.env.REACT_APP_API_URL + '/auth/logout', {
           method: 'POST',
@@ -99,7 +93,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear local session
       localStorage.removeItem('user');
       localStorage.removeItem('authToken');
       setUser(null);

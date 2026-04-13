@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import Login from '../login_page/page';
@@ -127,25 +127,23 @@ function analyzeProductHealth(product) {
     ingredients: product.ingredients_text || 'Not available',
     warnings: warnings,
     allergens: product.allergens || 'Not specified',
-    origin: product.origin_countries || 'Unknown'
+    origin: product.origin_countries || 'Unknown',
+    source: product.source || 'open-food-facts'
   };
 }
 
 async function generateAISummaryWithGemini(product) {
   try {
-    // Optimization: Only call Gemini if product has warnings or lower score
     if (product.score >= 70 && (!product.warnings || product.warnings.length === 0)) {
       return generateFallbackAISummary(product);
     }
 
     const nutriments = product.nutriments || {};
     
-    // SHORTENED PROMPT - 70% fewer tokens
     const productSummary = `Name: ${product.name}, Brand: ${product.brand}, Score: ${product.score}/100\nCalories: ${nutriments['energy-kcal_100g'] || 0}, Protein: ${nutriments['protein_100g'] || 0}g, Sugar: ${nutriments['sugars_100g'] || 0}g, Fat: ${nutriments['fat_100g'] || 0}g, Sodium: ${nutriments['sodium_100g'] || 0}mg\nWarnings: ${product.warnings && product.warnings.length > 0 ? product.warnings.join(', ') : 'None'}`;
 
     const prompt = `Analyze this product and return ONLY this JSON (no other text):\n{"summary":"1-2 sentence assessment","strengths":["s1","s2"],"concerns":["c1","c2"],"recommendation":"brief advice"}\n\nProduct: ${productSummary}`;
 
-    // Call backend API instead of direct Gemini call for security
     const response = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -208,7 +206,6 @@ function generateFallbackAISummary(product) {
   };
 }
 
-// Cache for AI analysis results to avoid duplicate API calls
 const aiAnalysisCache = {};
 
 function App() {
@@ -292,7 +289,6 @@ function App() {
     } catch (err) {
       console.error('Error extracting barcode:', err);
       
-      // Provide specific error messages
       if (err.message?.includes('API key') || err.status === 401) {
         setError('API authentication failed. Please contact support.');
       } else if (err.message?.includes('quota') || err.status === 429) {
@@ -323,7 +319,6 @@ function App() {
             throw new Error('Failed to read file');
           }
 
-          // Extract base64 data (remove data URL prefix)
           const base64Data = base64String.includes(',') 
             ? base64String.split(',')[1] 
             : base64String;
@@ -345,7 +340,6 @@ function App() {
   };
 
   const scanProduct = async (code) => {
-    // Rate limiting - prevent multiple simultaneous requests
     if (isProcessing) return;
     
     if (!code.trim()) {
@@ -366,25 +360,64 @@ function App() {
       const data = await response.json();
 
       if (data.status === 0) {
-        setError('Product not found in database');
-        return;
-      }
+        console.log('Product not found in Open Food Facts, trying web search...');
+        
+        try {
+          const webSearchResponse = await fetch('/api/web-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ barcode: code })
+          });
 
-      const analyzedProduct = analyzeProductHealth(data.product);
-      setProduct(analyzedProduct);
-      stopCamera();
+          if (!webSearchResponse.ok) {
+            setError('Product not found in any database. Please try a different barcode.');
+            return;
+          }
 
-      // Add delay to avoid rate limiting (1500ms for safer API quotas)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+          const webSearchData = await webSearchResponse.json();
+          
+          if (!webSearchData.success || !webSearchData.product) {
+            setError('Product not found in any database. Please try a different barcode.');
+            return;
+          }
 
-      // Check cache first before calling Gemini
-      if (aiAnalysisCache[code]) {
-        setAiAnalysis(aiAnalysisCache[code]);
+          console.log('Product found via web search:', webSearchData.product);
+          
+          const analyzedProduct = analyzeProductHealth(webSearchData.product);
+          setProduct(analyzedProduct);
+          stopCamera();
+
+          await new Promise(resolve => setTimeout(resolve, 1500));
+
+          if (aiAnalysisCache[code]) {
+            setAiAnalysis(aiAnalysisCache[code]);
+          } else {
+            const analysis = await generateAISummaryWithGemini(analyzedProduct);
+            if (analysis) {
+              aiAnalysisCache[code] = analysis;
+              setAiAnalysis(analysis);
+            }
+          }
+        } catch (webSearchErr) {
+          console.error('Web search fallback failed:', webSearchErr);
+          setError('Product not found in Open Food Facts or online sources. Please try a different barcode.');
+          return;
+        }
       } else {
-        const analysis = await generateAISummaryWithGemini(analyzedProduct);
-        if (analysis) {
-          aiAnalysisCache[code] = analysis;
-          setAiAnalysis(analysis);
+        const analyzedProduct = analyzeProductHealth(data.product);
+        setProduct(analyzedProduct);
+        stopCamera();
+
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        if (aiAnalysisCache[code]) {
+          setAiAnalysis(aiAnalysisCache[code]);
+        } else {
+          const analysis = await generateAISummaryWithGemini(analyzedProduct);
+          if (analysis) {
+            aiAnalysisCache[code] = analysis;
+            setAiAnalysis(analysis);
+          }
         }
       }
     } catch (err) {
@@ -620,6 +653,9 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
 
         <div className="product-footer-compact">
           <span className="barcode-compact">Barcode: {product.barcode}</span>
+          {product.source && (
+            <span className="source-badge">{product.source === 'web-search' ? '🔍 Web Search' : '📊 Open Food Facts'}</span>
+          )}
         </div>
       </div>
     );
@@ -700,214 +736,6 @@ function getUnit(key) {
   if (key === 'sodium_100g') return 'mg';
   if (key === 'energy-kcal_100g') return ' kcal';
   return 'g';
-}
-
-function getHealthRating(product) {
-  const score = product.score || 0;
-  if (score >= 75) return '✓ Excellent';
-  if (score >= 55) return '◐ Good';
-  if (score >= 40) return '⚠ Fair';
-  return '✗ Poor';
-}
-
-function getHealthDescription(product) {
-  const score = product.score || 0;
-  const nutri = product.nutriments || {};
-  
-  const sugar = nutri['sugars_100g'] || 0;
-  const sodium = nutri['sodium_100g'] || 0;
-  const saturated = nutri['saturated-fat_100g'] || 0;
-  const fiber = nutri['fiber_100g'] || 0;
-  const protein = nutri['protein_100g'] || 0;
-
-  let description = '';
-
-  if (score >= 75) {
-    description = `This is a highly nutritious product. ${protein > 5 ? 'High in protein, ' : ''}${fiber > 5 ? 'good source of fiber, ' : ''}and balanced in key nutrients.`;
-  } else if (score >= 55) {
-    description = `A reasonably healthy choice. ${sugar > 10 ? 'Contains elevated sugar levels. ' : ''}${sodium > 400 ? 'Watch sodium intake. ' : ''}Overall good nutritional value.`;
-  } else if (score >= 40) {
-    description = `Moderate nutrition with some concerns. ${sugar > 15 ? 'High sugar content. ' : ''}${saturated > 5 ? 'Elevated saturated fat. ' : ''}${sodium > 500 ? 'High in sodium. ' : ''}Consume in moderation.`;
-  } else {
-    description = `Limited nutritional value. ${sugar > 20 ? 'Very high in sugar. ' : ''}${saturated > 8 ? 'High in saturated fat. ' : ''}${sodium > 800 ? 'Excessive sodium. ' : ''}Consider healthier alternatives.`;
-  }
-
-  return description;
-}
-
-function getHealthMetrics(product) {
-  const nutri = product.nutriments || {};
-  
-  const sugar = nutri['sugars_100g'] || 0;
-  const sodium = nutri['sodium_100g'] || 0;
-  const saturated = nutri['saturated-fat_100g'] || 0;
-  const fiber = nutri['fiber_100g'] || 0;
-  const protein = nutri['protein_100g'] || 0;
-  const calories = nutri['energy-kcal_100g'] || 0;
-
-  return [
-    {
-      label: 'Sugar Impact',
-      value: `${sugar.toFixed(1)}g`,
-      status: sugar > 15 ? 'high' : sugar > 5 ? 'moderate' : 'low'
-    },
-    {
-      label: 'Sodium Level',
-      value: `${sodium.toFixed(0)}mg`,
-      status: sodium > 500 ? 'high' : sodium > 200 ? 'moderate' : 'low'
-    },
-    {
-      label: 'Saturated Fat',
-      value: `${saturated.toFixed(1)}g`,
-      status: saturated > 5 ? 'high' : saturated > 2 ? 'moderate' : 'low'
-    },
-    {
-      label: 'Fiber Content',
-      value: `${fiber.toFixed(1)}g`,
-      status: fiber > 3 ? 'high' : fiber > 1 ? 'moderate' : 'low'
-    },
-    {
-      label: 'Protein Level',
-      value: `${protein.toFixed(1)}g`,
-      status: protein > 10 ? 'high' : protein > 5 ? 'moderate' : 'low'
-    },
-    {
-      label: 'Energy Density',
-      value: `${calories.toFixed(0)} kcal`,
-      status: calories > 250 ? 'high' : calories > 100 ? 'moderate' : 'low'
-    }
-  ];
-}
-
-function renderMacroAnalysis(product) {
-  const nutri = product.nutriments || {};
-  
-  const protein = nutri['protein_100g'] || 0;
-  const carbs = nutri['carbohydrates_100g'] || 0;
-  const fat = nutri['fat_100g'] || 0;
-  const fiber = nutri['fiber_100g'] || 0;
-  
-  const total = protein + carbs + fat;
-  const proteinPct = total > 0 ? ((protein / total) * 100).toFixed(0) : 0;
-  const carbsPct = total > 0 ? ((carbs / total) * 100).toFixed(0) : 0;
-  const fatPct = total > 0 ? ((fat / total) * 100).toFixed(0) : 0;
-
-  return (
-    <div className="macro-bars">
-      <div className="macro-bar">
-        <div className="macro-label">Protein: {proteinPct}%</div>
-        <div className="macro-bar-bg">
-          <div className="macro-bar-fill" style={{width: `${proteinPct}%`, background: '#10b981'}}></div>
-        </div>
-      </div>
-      <div className="macro-bar">
-        <div className="macro-label">Carbs: {carbsPct}%</div>
-        <div className="macro-bar-bg">
-          <div className="macro-bar-fill" style={{width: `${carbsPct}%`, background: '#f59e0b'}}></div>
-        </div>
-      </div>
-      <div className="macro-bar">
-        <div className="macro-label">Fat: {fatPct}%</div>
-        <div className="macro-bar-bg">
-          <div className="macro-bar-fill" style={{width: `${fatPct}%`, background: '#ef4444'}}></div>
-        </div>
-      </div>
-      <p className="macro-note">Fiber content: {fiber.toFixed(1)}g ({fiber > 3 ? 'Excellent' : fiber > 1 ? 'Good' : 'Low'})</p>
-    </div>
-  );
-}
-
-function renderAISummary(product, aiAnalysis = null) {
-  if (aiAnalysis) {
-    return (
-      <div className="ai-summary-content">
-        <p className="ai-intro">
-          <strong>✓ Summary:</strong> {aiAnalysis.summary}
-        </p>
-        
-        {aiAnalysis.strengths && aiAnalysis.strengths.length > 0 && (
-          <p className="ai-strengths">
-            <strong>Strengths:</strong> {aiAnalysis.strengths.join(', ')}.
-          </p>
-        )}
-        
-        {aiAnalysis.concerns && aiAnalysis.concerns.length > 0 && (
-          <p className="ai-concerns">
-            <strong>Considerations:</strong> {aiAnalysis.concerns.join(', ')}.
-          </p>
-        )}
-        
-        <p className="ai-recommendation">
-          <strong>Recommendation:</strong> {aiAnalysis.recommendation}
-        </p>
-      </div>
-    );
-  }
-
-  const nutri = product.nutriments || {};
-  const score = product.score || 0;
-  
-  const sugar = nutri['sugars_100g'] || 0;
-  const sodium = nutri['sodium_100g'] || 0;
-  const saturated = nutri['saturated-fat_100g'] || 0;
-  const fiber = nutri['fiber_100g'] || 0;
-  const protein = nutri['protein_100g'] || 0;
-  const fat = nutri['fat_100g'] || 0;
-  const calories = nutri['energy-kcal_100g'] || 0;
-
-  const strengths = [];
-  if (protein > 8) strengths.push(`high protein (${protein.toFixed(1)}g)`);
-  if (fiber > 3) strengths.push(`rich in fiber (${fiber.toFixed(1)}g)`);
-  if (calories < 100) strengths.push('low calorie density');
-  if (saturated < 2) strengths.push('low in saturated fat');
-  if (sodium < 200) strengths.push('low sodium');
-  if (sugar < 5) strengths.push('minimal added sugars');
-
-  const concerns = [];
-  if (sugar > 15) concerns.push(`high sugar intake (${sugar.toFixed(1)}g)`);
-  if (sodium > 500) concerns.push(`elevated sodium (${sodium.toFixed(0)}mg)`);
-  if (saturated > 5) concerns.push(`significant saturated fat (${saturated.toFixed(1)}g)`);
-  if (calories > 250) concerns.push('calorie-dense per 100g');
-  if (fat > 15) concerns.push('high total fat content');
-
-  let title, emoji;
-  if (score >= 75) {
-    title = 'Excellent Choice';
-    emoji = '✓';
-  } else if (score >= 55) {
-    title = 'Good Option';
-    emoji = '◐';
-  } else if (score >= 40) {
-    title = 'Fair Quality';
-    emoji = '⚠';
-  } else {
-    title = 'Limited Nutrition';
-    emoji = '✗';
-  }
-
-  return (
-    <div className="ai-summary-content">
-      <p className="ai-intro">
-        <strong>{emoji} {title}:</strong> {getIntroText(score)}
-      </p>
-      
-      {strengths.length > 0 && (
-        <p className="ai-strengths">
-          <strong>Strengths:</strong> {strengths.slice(0, 3).join(', ')}.
-        </p>
-      )}
-      
-      {concerns.length > 0 && (
-        <p className="ai-concerns">
-          <strong>Considerations:</strong> {concerns.slice(0, 2).join(', ')}.
-        </p>
-      )}
-      
-      <p className="ai-recommendation">
-        <strong>Recommendation:</strong> {getRecommendation(score)}
-      </p>
-    </div>
-  );
 }
 
 function getIntroText(score) {

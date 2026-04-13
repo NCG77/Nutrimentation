@@ -1,11 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Initialize Gemini with server-side API key (not exposed to client)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export async function POST(req) {
   try {
-    // Validate API key exists
     if (!process.env.GEMINI_API_KEY) {
       return Response.json(
         { error: "GEMINI_API_KEY not configured" },
@@ -22,14 +20,11 @@ export async function POST(req) {
       );
     }
 
-    // Initialize model
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // Call Gemini API
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
 
-    // Parse JSON from response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error("Could not parse JSON from Gemini response");

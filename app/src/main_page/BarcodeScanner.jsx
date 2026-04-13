@@ -20,7 +20,6 @@ export default function BarcodeScanner({ onScan, onClose }) {
           return;
         }
 
-        // Force back camera on mobile
         await html5QrCode.start(
           { facingMode: "environment" },
           {
@@ -31,7 +30,6 @@ export default function BarcodeScanner({ onScan, onClose }) {
             if (navigator.vibrate) navigator.vibrate(200);
             setStatus("✅ Barcode detected!");
 
-            // Flash effect feedback
             document.body.style.background = "#00ffcc";
             setTimeout(() => {
               document.body.style.background = "";

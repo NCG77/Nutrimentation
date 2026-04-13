@@ -480,7 +480,7 @@ body {
   transform: translateY(-1px);
 }
 
-/* ===== CAMERA SECTION ===== */
+
 .camera-section {
   margin: 2.5rem 0;
   padding: 2rem;
@@ -746,12 +746,12 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* ===== DETAILED INFO ===== */
+
 .detailed-info {
   margin-top: 0;
 }
 
-/* ===== HEALTH SUMMARY ===== */
+
 .health-summary-section {
   margin-bottom: 2rem;
   padding: 2rem;
@@ -939,7 +939,7 @@ body {
   color: #059669;
 }
 
-/* ===== MACRO SECTION ===== */
+
 .macro-section {
   margin-bottom: 0;
   padding: 2rem;
@@ -1134,7 +1134,7 @@ body {
   text-transform: uppercase;
 }
 
-/* ===== ALERTS ===== */
+
 .alert {
   padding: 1.25rem 1.5rem;
   border-radius: 12px;
@@ -1162,7 +1162,7 @@ body {
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
+
 @media (max-width: 768px) {
   .header {
     padding: 1.5rem 1rem;
@@ -1431,7 +1431,7 @@ body {
   }
 }
 
-/* ===== SCANNER UI ===== */
+
 .scanner-ui {
   display: flex;
   flex-direction: column;
@@ -1454,7 +1454,7 @@ body {
   margin: 0;
 }
 
-/* ===== QR CODE SCANNER ===== */
+
 .qr-scanner-wrapper {
   position: relative;
   width: 100%;
@@ -1549,7 +1549,7 @@ body {
   border: none !important;
 }
 
-/* ===== SCANNER OVERLAY ===== */
+
 .scanner-container {
   position: relative;
   width: 100%;
@@ -1599,7 +1599,7 @@ body {
   box-shadow: 0 0 20px rgba(0, 255, 200, 0.5);
 }
 
-/* animated scanning line */
+
 .frame::after {
   content: "";
   position: absolute;
@@ -1635,7 +1635,7 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-/* text */
+
 .scan-text {
   color: white;
   margin-top: 1rem;
@@ -1645,7 +1645,7 @@ body {
   font-weight: 500;
 }
 
-/* success flash */
+
 .scan-success {
   animation: scanFlash 0.3s;
 }
@@ -1715,14 +1715,14 @@ body {
   }
 }
 
-/* ===== MODERN PRODUCT CARD ===== */
+
 .modern-container {
   padding: 16px;
   max-width: 420px;
   margin: 0 auto;
 }
 
-/* HERO CARD */
+
 .hero-card {
   background: linear-gradient(135deg, #f3ebe6 0%, #fdfbf9 100%);
   border-radius: 24px;
@@ -1783,7 +1783,7 @@ body {
   font-weight: 600;
 }
 
-/* CARDS */
+
 .card {
   background: white;
   border-radius: 20px;
@@ -1813,7 +1813,7 @@ body {
   border-left: 4px solid var(--danger);
 }
 
-/* AI INSIGHT */
+
 .ai-insight-text {
   font-size: 14px;
   line-height: 1.6;
@@ -1821,7 +1821,7 @@ body {
   margin: 0;
 }
 
-/* METRICS BUBBLES */
+
 .metrics-bubble-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1865,7 +1865,7 @@ body {
   font-weight: 600;
 }
 
-/* INSIGHTS */
+
 .insight-group {
   margin-bottom: 12px;
 }
@@ -1896,7 +1896,7 @@ body {
   line-height: 1.4;
 }
 
-/* COMPACT NUTRITION */
+
 .nutrition-compact-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1924,7 +1924,7 @@ body {
   color: var(--primary);
 }
 
-/* INGREDIENTS */
+
 .ingredients-compact {
   font-size: 14px;
   line-height: 1.6;
@@ -1932,7 +1932,7 @@ body {
   margin: 0;
 }
 
-/* WARNINGS */
+
 .warning-compact-list {
   list-style: none;
   padding: 0;
@@ -1951,7 +1951,7 @@ body {
   border-bottom: none;
 }
 
-/* FOOTER */
+
 .product-footer-compact {
   text-align: center;
   padding: 16px 0;
@@ -1967,7 +1967,20 @@ body {
   text-transform: uppercase;
 }
 
-/* RESPONSIVE */
+.source-badge {
+  display: inline-block;
+  margin-left: 12px;
+  padding: 4px 8px;
+  font-size: 11px;
+  background: var(--primary);
+  color: white;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+
 @media (max-width: 480px) {
   .modern-container {
     padding: 12px;
