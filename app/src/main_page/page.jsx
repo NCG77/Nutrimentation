@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import Login from '../login_page/page';
@@ -132,7 +132,7 @@ function analyzeProductHealth(product) {
   };
 }
 
-async function generateAISummaryWithGemini(product) {
+async function generateAISummary(product, userPrefs = null) {
   try {
     if (product.score >= 70 && (!product.warnings || product.warnings.length === 0)) {
       return generateFallbackAISummary(product);
@@ -142,7 +142,25 @@ async function generateAISummaryWithGemini(product) {
     
     const productSummary = `Name: ${product.name}, Brand: ${product.brand}, Score: ${product.score}/100\nCalories: ${nutriments['energy-kcal_100g'] || 0}, Protein: ${nutriments['protein_100g'] || 0}g, Sugar: ${nutriments['sugars_100g'] || 0}g, Fat: ${nutriments['fat_100g'] || 0}g, Sodium: ${nutriments['sodium_100g'] || 0}mg\nWarnings: ${product.warnings && product.warnings.length > 0 ? product.warnings.join(', ') : 'None'}`;
 
-    const prompt = `Analyze this product and return ONLY this JSON (no other text):\n{"summary":"1-2 sentence assessment","strengths":["s1","s2"],"concerns":["c1","c2"],"recommendation":"brief advice"}\n\nProduct: ${productSummary}`;
+    let prefContext = '';
+    if (userPrefs?.dietTypes?.length > 0) {
+      prefContext += `\nUser's dietary focus: ${userPrefs.dietTypes.join(', ')}.`;
+    }
+    if (userPrefs?.customHealthProblems?.trim()) {
+      prefContext += `\nUser's health concerns: ${userPrefs.customHealthProblems}.`;
+    }
+    if (prefContext) {
+      prefContext += ' Provide analysis and recommendations relevant to their specific needs and goals.';
+    }
+
+    const explanationRequest = userPrefs?.showExplanations 
+      ? `\nFor concerns, also return: "explanations": [{"ingredient": "name", "issue": "why it matters for their health", "alternatives": ["alternative 1", "alternative 2"]}]`
+      : '';
+
+    const prompt = `Analyze this product and return ONLY this JSON (no other text):
+{"summary":"1-2 sentence assessment","strengths":["s1","s2"],"concerns":["c1","c2"],"recommendation":"brief advice"${explanationRequest ? ',"explanations":[{"ingredient":"name","issue":"why it matters","alternatives":["alt1"]}]' : ''}}
+
+Product: ${productSummary}${prefContext}`;
 
     const response = await fetch('/api/analyze', {
       method: 'POST',
@@ -208,6 +226,19 @@ function generateFallbackAISummary(product) {
 
 const aiAnalysisCache = {};
 
+// Personalization preferences
+const DIET_TYPES = [
+  { id: 'vegetarian', label: 'Vegetarian', icon: '🌱' },
+  { id: 'vegan', label: 'Vegan', icon: '🥬' },
+  { id: 'muscle-gain', label: 'Muscle Gain', icon: '💪' },
+  { id: 'weight-gain', label: 'Weight Gain', icon: '📈' },
+  { id: 'weight-loss', label: 'Weight Loss', icon: '⚖️' },
+  { id: 'acne-safe', label: 'Acne-Safe', icon: '✨' },
+  { id: 'diabetes', label: 'Diabetes-Friendly', icon: '🩺' },
+  { id: 'cholesterol', label: 'Cholesterol Management', icon: '❤️‍🩹' },
+  { id: 'heart-health', label: 'Heart Health', icon: '❤️' }
+];
+
 function App() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
@@ -219,6 +250,23 @@ function App() {
   const [showScanner, setShowScanner] = useState(false);
   const fileInputRef = useRef(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [userPreferences, setUserPreferences] = useState({ dietTypes: [], customHealthProblems: '', showExplanations: true });
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false);
+  const [showExplanations, setShowExplanations] = useState(true);
+  const [customHealthProblems, setCustomHealthProblems] = useState('');
+
+  // Load preferences from localStorage after hydration
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('nutrimentation_preferences');
+      if (saved) {
+        const prefs = JSON.parse(saved);
+        setUserPreferences(prefs);
+        setShowExplanations(prefs.showExplanations ?? true);
+        setCustomHealthProblems(prefs.customHealthProblems || '');
+      }
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -392,7 +440,7 @@ function App() {
           if (aiAnalysisCache[code]) {
             setAiAnalysis(aiAnalysisCache[code]);
           } else {
-            const analysis = await generateAISummaryWithGemini(analyzedProduct);
+            const analysis = await generateAISummary(analyzedProduct, userPreferences);
             if (analysis) {
               aiAnalysisCache[code] = analysis;
               setAiAnalysis(analysis);
@@ -413,7 +461,7 @@ function App() {
         if (aiAnalysisCache[code]) {
           setAiAnalysis(aiAnalysisCache[code]);
         } else {
-          const analysis = await generateAISummaryWithGemini(analyzedProduct);
+          const analysis = await generateAISummary(analyzedProduct, userPreferences);
           if (analysis) {
             aiAnalysisCache[code] = analysis;
             setAiAnalysis(analysis);
@@ -439,6 +487,32 @@ function App() {
     router.push('/src/login_page');
   };
 
+  const updatePreferences = (newPrefs) => {
+    const updated = { ...userPreferences, ...newPrefs };
+    setUserPreferences(updated);
+    localStorage.setItem('nutrimentation_preferences', JSON.stringify(updated));
+  };
+
+  const toggleDietType = (dietId) => {
+    const current = userPreferences.dietTypes || [];
+    const updated = current.includes(dietId) 
+      ? current.filter(id => id !== dietId)
+      : [...current, dietId];
+    updatePreferences({ dietTypes: updated });
+  };
+
+  const toggleExplanations = () => {
+    const newValue = !showExplanations;
+    setShowExplanations(newValue);
+    updatePreferences({ showExplanations: newValue });
+  };
+
+  const handleCustomHealthProblemsChange = (e) => {
+    const value = e.target.value;
+    setCustomHealthProblems(value);
+    updatePreferences({ customHealthProblems: value });
+  };
+
   return (
     <div className="app">
       <header className="header">
@@ -448,6 +522,13 @@ function App() {
         </div>
         
         <div className="header-menu">
+          <button 
+            className="btn-preferences"
+            onClick={() => setShowPreferencesModal(!showPreferencesModal)}
+            title="Set dietary preferences"
+          >
+            ⚙️ Preferences
+          </button>
           <button 
             className={`hamburger ${menuOpen ? 'active' : ''}`}
             onClick={() => setMenuOpen(!menuOpen)}
@@ -474,6 +555,65 @@ function App() {
           )}
         </div>
       </header>
+
+      {showPreferencesModal && (
+        <div className="preferences-modal">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Your Preferences</h2>
+              <button 
+                className="btn-close"
+                onClick={() => setShowPreferencesModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="section">
+                <h3>Dietary Focus</h3>
+                <p className="section-hint">Select all that apply to get personalized insights</p>
+                <div className="diet-options">
+                  {DIET_TYPES.map(diet => (
+                    <button
+                      key={diet.id}
+                      className={`diet-option ${userPreferences.dietTypes?.includes(diet.id) ? 'active' : ''}`}
+                      onClick={() => toggleDietType(diet.id)}
+                    >
+                      <span className="diet-icon">{diet.icon}</span>
+                      <span className="diet-label">{diet.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="section">
+                <h3>Explanation Level</h3>
+                <label className="checkbox-option">
+                  <input
+                    type="checkbox"
+                    checked={showExplanations}
+                    onChange={toggleExplanations}
+                  />
+                  <span>Show detailed explanations (WHY unhealthy, WHAT ingredients, alternatives)</span>
+                </label>
+              </div>
+
+              <div className="section">
+                <h3>Custom Health Concerns</h3>
+                <p className="section-hint">Describe any specific health issues or goals</p>
+                <textarea
+                  className="custom-health-input"
+                  placeholder="E.g., high blood pressure, kidney problems, sensitive stomach, lactose intolerance..."
+                  value={customHealthProblems}
+                  onChange={handleCustomHealthProblemsChange}
+                  rows="4"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="container">
         {!product ? (
@@ -549,7 +689,13 @@ function App() {
                 ← Back to Search
               </button>
 
-              <ProductCard product={product} detailed={true} aiAnalysis={aiAnalysis} />
+              <ProductCard 
+                product={product} 
+                detailed={true} 
+                aiAnalysis={aiAnalysis}
+                showExplanations={showExplanations}
+                userPreferences={userPreferences}
+              />
             </section>
           </>
         )}
@@ -558,8 +704,10 @@ function App() {
   );
 }
 
-function ProductCard({ product, detailed = false, aiAnalysis = null }) {
+function ProductCard({ product, detailed = false, aiAnalysis = null, showExplanations = false, userPreferences = {} }) {
   if (!product) return null;
+  
+  const [expandedExplanations, setExpandedExplanations] = useState(false);
 
   const scoreColor = 
     product.score >= 70 ? '#10b981' :
@@ -585,6 +733,11 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
           <div className="card soft">
             <h3>AI Insight</h3>
             <p className="ai-insight-text">{aiAnalysis.summary || 'Analyzing product...'}</p>
+            {userPreferences.dietTypes?.length > 0 && (
+              <p className="personalization-note">
+                💡 Analyzed for: {userPreferences.dietTypes.map(d => DIET_TYPES.find(dt => dt.id === d)?.label).filter(Boolean).join(', ')}
+              </p>
+            )}
           </div>
         )}
 
@@ -597,7 +750,17 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
 
         {(aiAnalysis?.strengths || aiAnalysis?.concerns) && (
           <div className="card">
-            <h3>Key Insights</h3>
+            <div className="insight-header">
+              <h3>Key Insights</h3>
+              {showExplanations && aiAnalysis?.explanations?.length > 0 && (
+                <button
+                  className="btn-toggle-explanations"
+                  onClick={() => setExpandedExplanations(!expandedExplanations)}
+                >
+                  {expandedExplanations ? '▼ Hide Details' : '► Show Details'}
+                </button>
+              )}
+            </div>
             {aiAnalysis?.strengths && aiAnalysis.strengths.length > 0 && (
               <div className="insight-group">
                 <p className="insight-label">✓ Strengths</p>
@@ -616,6 +779,31 @@ function ProductCard({ product, detailed = false, aiAnalysis = null }) {
                     <li key={i}>{c}</li>
                   ))}
                 </ul>
+              </div>
+            )}
+            {expandedExplanations && aiAnalysis?.explanations && aiAnalysis.explanations.length > 0 && (
+              <div className="explanations-section">
+                <h4>Detailed Breakdown</h4>
+                {aiAnalysis.explanations.map((exp, i) => (
+                  <div key={i} className="explanation-item">
+                    <div className="exp-ingredient">
+                      <strong>🔴 {exp.ingredient || 'Ingredient'}</strong>
+                    </div>
+                    <div className="exp-issue">
+                      <p><strong>Why it matters:</strong> {exp.issue || 'May impact health'}</p>
+                    </div>
+                    {exp.alternatives && exp.alternatives.length > 0 && (
+                      <div className="exp-alternatives">
+                        <p><strong>💡 Healthier alternatives:</strong></p>
+                        <ul>
+                          {exp.alternatives.map((alt, j) => (
+                            <li key={j}>{alt}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>

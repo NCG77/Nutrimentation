@@ -1,8 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import axios from "axios";
-import * as cheerio from "cheerio";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+import Groq from "groq-sdk";
 
 async function searchProductOnline(barcode, productName = null) {
   try {
@@ -67,11 +63,11 @@ async function scrapeProductDetails(url) {
 
 async function extractProductInfoWithAI(barcode, scrapedData) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY not configured");
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY not configured");
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
     const prompt = `You are a nutritional data extraction expert. Based on the following product information found online, extract and structure the data as JSON. Return ONLY a valid JSON object with no markdown formatting.
 
@@ -104,8 +100,19 @@ Extract and return a JSON object with this exact structure (use null for missing
 
 Important: Only include numbers for nutriment values. If units are mentioned (g, mg, kcal), extract just the numeric value. Return ONLY valid JSON, nothing else.`;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text().trim();
+    const result = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.3,
+      max_tokens: 1024,
+    });
+
+    const responseText = result.choices[0].message.content.trim();
 
     const cleanedText = responseText
       .replace(/```json\n?/g, "")
@@ -122,9 +129,9 @@ Important: Only include numbers for nutriment values. If units are mentioned (g,
 
 export async function POST(req) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       return Response.json(
-        { error: "GEMINI_API_KEY not configured" },
+        { error: "GROQ_API_KEY not configured" },
         { status: 500 }
       );
     }
