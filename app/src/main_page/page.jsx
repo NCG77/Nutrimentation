@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import Login from '../login_page/page';
 import BarcodeScanner from './BarcodeScanner';
+import MultiModelAnalysisDisplay from './MultiModelAnalysis';
 import './index.css';
 
 function analyzeProductHealth(product) {
@@ -138,6 +139,29 @@ async function generateAISummary(product, userPrefs = null) {
       return generateFallbackAISummary(product);
     }
 
+    // Call multi-model analysis
+    try {
+      const multiAnalysisResponse = await fetch('/api/multi-analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          product, 
+          userPrefs,
+          searchData: null // Can be populated if search results are available
+        })
+      });
+
+      if (multiAnalysisResponse.ok) {
+        const multiData = await multiAnalysisResponse.json();
+        if (multiData.analysis) {
+          return multiData.analysis;
+        }
+      }
+    } catch (multiErr) {
+      console.error('Multi-model analysis failed, falling back to simple analysis:', multiErr);
+    }
+
+    // Fallback to simple analysis if multi-model fails
     const nutriments = product.nutriments || {};
     
     const productSummary = `Name: ${product.name}, Brand: ${product.brand}, Score: ${product.score}/100\nCalories: ${nutriments['energy-kcal_100g'] || 0}, Protein: ${nutriments['protein_100g'] || 0}g, Sugar: ${nutriments['sugars_100g'] || 0}g, Fat: ${nutriments['fat_100g'] || 0}g, Sodium: ${nutriments['sodium_100g'] || 0}mg\nWarnings: ${product.warnings && product.warnings.length > 0 ? product.warnings.join(', ') : 'None'}`;
@@ -730,15 +754,24 @@ function ProductCard({ product, detailed = false, aiAnalysis = null, showExplana
         </div>
 
         {aiAnalysis && (
-          <div className="card soft">
-            <h3>AI Insight</h3>
-            <p className="ai-insight-text">{aiAnalysis.summary || 'Analyzing product...'}</p>
-            {userPreferences.dietTypes?.length > 0 && (
-              <p className="personalization-note">
-                💡 Analyzed for: {userPreferences.dietTypes.map(d => DIET_TYPES.find(dt => dt.id === d)?.label).filter(Boolean).join(', ')}
-              </p>
+          <>
+            {aiAnalysis.models ? (
+              <MultiModelAnalysisDisplay 
+                analysis={aiAnalysis} 
+                showExplanations={showExplanations} 
+              />
+            ) : (
+              <div className="card soft">
+                <h3>AI Insight</h3>
+                <p className="ai-insight-text">{aiAnalysis.summary || 'Analyzing product...'}</p>
+                {userPreferences.dietTypes?.length > 0 && (
+                  <p className="personalization-note">
+                    💡 Analyzed for: {userPreferences.dietTypes.map(d => DIET_TYPES.find(dt => dt.id === d)?.label).filter(Boolean).join(', ')}
+                  </p>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
 
         <div className="metrics-bubble-grid">

@@ -18,7 +18,6 @@ export async function POST(req) {
       );
     }
 
-    // Initialize Groq inside the function with trimmed key
     const apiKey = process.env.GROQ_API_KEY.trim();
     
     const groq = new Groq({ apiKey });
