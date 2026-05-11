@@ -22,7 +22,6 @@ export function getAuthErrorMessage(error: any): string {
     'auth/email-already-in-use': 'This email is already registered. Please sign in or use a different email.',
     'auth/weak-password': 'Password should be at least 6 characters long.',
     'auth/operation-not-allowed': 'Account creation is not available. Please try again later.',
-    'auth/invalid-email': 'Please enter a valid email address.',
 
     // Google Sign In errors
     'auth/account-exists-with-different-credential': 'An account already exists with this email using a different sign-in method.',
