@@ -17,6 +17,7 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import { getAuthErrorMessage, logErrorForDebug } from "../lib/errorHandler";
 
 interface AuthContextType {
   user: User | null;
@@ -43,16 +44,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      logErrorForDebug(error, 'AuthContext.signIn');
+      throw new Error(getAuthErrorMessage(error));
+    }
   };
 
   const signUp = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      logErrorForDebug(error, 'AuthContext.signUp');
+      throw new Error(getAuthErrorMessage(error));
+    }
   };
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      logErrorForDebug(error, 'AuthContext.signInWithGoogle');
+      throw new Error(getAuthErrorMessage(error));
+    }
   };
 
   const logout = async () => {

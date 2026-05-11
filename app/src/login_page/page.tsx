@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
+import { getAuthErrorMessage, logErrorForDebug } from "../../lib/errorHandler";
 import styles from "./login.module.css";
 
 export default function Login() {
@@ -23,7 +24,9 @@ export default function Login() {
       await signIn(email, password);
       router.push("/src/main_page");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to sign in");
+      logErrorForDebug(err, 'Login.handleSubmit');
+      const errorMessage = err instanceof Error ? getAuthErrorMessage(err) : "Unable to sign in. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -37,9 +40,9 @@ export default function Login() {
       await signInWithGoogle();
       router.push("/src/main_page");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to sign in with Google",
-      );
+      logErrorForDebug(err, 'Login.handleGoogleSignIn');
+      const errorMessage = err instanceof Error ? getAuthErrorMessage(err) : "Unable to sign in with Google. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

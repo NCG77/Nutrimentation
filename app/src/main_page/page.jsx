@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import Login from '../login_page/page';
 import BarcodeScanner from './BarcodeScanner';
 import MultiModelAnalysisDisplay from './MultiModelAnalysis';
+import { getAPIErrorMessage, getGeneralErrorMessage, logErrorForDebug } from '../../lib/errorHandler';
 import './index.css';
 
 function analyzeProductHealth(product) {
@@ -158,7 +159,8 @@ async function generateAISummary(product, userPrefs = null) {
         }
       }
     } catch (multiErr) {
-      console.error('Multi-model analysis failed, falling back to simple analysis:', multiErr);
+      logErrorForDebug(multiErr, 'generateAISummary.multiAnalysis');
+      console.error('Multi-model analysis failed, falling back to simple analysis');
     }
 
     // Fallback to simple analysis if multi-model fails
@@ -198,7 +200,7 @@ Product: ${productSummary}${prefContext}`;
     return data.analysis || generateFallbackAISummary(product);
 
   } catch (error) {
-    console.error('Error generating AI summary:', error.message);
+    logErrorForDebug(error, 'generateAISummary');
     return generateFallbackAISummary(product);
   }
 }
@@ -359,17 +361,8 @@ function App() {
       
       await scanProduct(cleanCode);
     } catch (err) {
-      console.error('Error extracting barcode:', err);
-      
-      if (err.message?.includes('API key') || err.status === 401) {
-        setError('API authentication failed. Please contact support.');
-      } else if (err.message?.includes('quota') || err.status === 429) {
-        setError('API quota exceeded. Please try again later.');
-      } else if (err.message?.includes('Failed to extract')) {
-        setError('Invalid image format. Please try a clearer photo.');
-      } else {
-        setError(`Failed to extract barcode: ${err.message || 'Unknown error'}. Please try again or enter manually.`);
-      }
+      logErrorForDebug(err, 'extractBarcodeFromImage');
+      setError(getAPIErrorMessage(err, 'barcode'));
     } finally {
       setIsProcessing(false);
     }
@@ -397,16 +390,16 @@ function App() {
 
           await extractBarcodeFromImage(base64Data, 'image/jpeg');
         } catch (error) {
-          console.error('Error in file reader:', error);
-          setError('Failed to process image file. Please try again.');
+          logErrorForDebug(error, 'handleFileUpload.fileReader');
+          setError(getAPIErrorMessage(error, 'barcode'));
           setIsProcessing(false);
         }
       };
 
       reader.readAsDataURL(file);
     } catch (err) {
-      console.error('Error setting up file upload:', err);
-      setError('Failed to process image. Please try again.');
+      logErrorForDebug(err, 'handleFileUpload');
+      setError(getAPIErrorMessage(err, 'barcode'));
       setIsProcessing(false);
     }
   };
@@ -471,8 +464,8 @@ function App() {
             }
           }
         } catch (webSearchErr) {
-          console.error('Web search fallback failed:', webSearchErr);
-          setError('Product not found in Open Food Facts or online sources. Please try a different barcode.');
+          logErrorForDebug(webSearchErr, 'scanProduct.webSearch');
+          setError(getAPIErrorMessage(webSearchErr, 'product'));
           return;
         }
       } else {
@@ -493,7 +486,8 @@ function App() {
         }
       }
     } catch (err) {
-      setError('Failed to fetch product data. Please check your internet connection.');
+      logErrorForDebug(err, 'scanProduct');
+      setError(getAPIErrorMessage(err, 'product'));
       console.error('Error:', err);
     } finally {
       setIsProcessing(false);
