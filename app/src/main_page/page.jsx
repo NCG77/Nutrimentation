@@ -140,7 +140,6 @@ async function generateAISummary(product, userPrefs = null) {
       return generateFallbackAISummary(product);
     }
 
-    // Call multi-model analysis
     try {
       const multiAnalysisResponse = await fetch('/api/multi-analyze', {
         method: 'POST',
@@ -148,7 +147,7 @@ async function generateAISummary(product, userPrefs = null) {
         body: JSON.stringify({ 
           product, 
           userPrefs,
-          searchData: null // Can be populated if search results are available
+          searchData: null 
         })
       });
 
@@ -163,7 +162,6 @@ async function generateAISummary(product, userPrefs = null) {
       console.error('Multi-model analysis failed, falling back to simple analysis');
     }
 
-    // Fallback to simple analysis if multi-model fails
     const nutriments = product.nutriments || {};
     
     const productSummary = `Name: ${product.name}, Brand: ${product.brand}, Score: ${product.score}/100\nCalories: ${nutriments['energy-kcal_100g'] || 0}, Protein: ${nutriments['protein_100g'] || 0}g, Sugar: ${nutriments['sugars_100g'] || 0}g, Fat: ${nutriments['fat_100g'] || 0}g, Sodium: ${nutriments['sodium_100g'] || 0}mg\nWarnings: ${product.warnings && product.warnings.length > 0 ? product.warnings.join(', ') : 'None'}`;
@@ -252,7 +250,6 @@ function generateFallbackAISummary(product) {
 
 const aiAnalysisCache = {};
 
-// Personalization preferences
 const DIET_TYPES = [
   { id: 'vegetarian', label: 'Vegetarian', icon: '🌱' },
   { id: 'vegan', label: 'Vegan', icon: '🥬' },
@@ -281,7 +278,6 @@ function App() {
   const [showExplanations, setShowExplanations] = useState(true);
   const [customHealthProblems, setCustomHealthProblems] = useState('');
 
-  // Load preferences from localStorage after hydration
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('nutrimentation_preferences');
