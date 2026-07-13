@@ -4,33 +4,33 @@
  */
 
 export function getAuthErrorMessage(error: any): string {
-  // Firebase authentication errors
+  // Generic authentication errors to prevent exposing backend details
   const errorCode = error?.code || '';
   const errorMessage = error?.message || '';
 
-  // Map Firebase error codes to user-friendly messages
+  // Use abstract messages for all authentication related issues
   const errorMap: { [key: string]: string } = {
-    // Sign In errors
-    'auth/user-not-found': 'Email or password is incorrect. Please try again.',
-    'auth/wrong-password': 'Email or password is incorrect. Please try again.',
-    'auth/invalid-email': 'Please enter a valid email address.',
-    'auth/user-disabled': 'This account has been disabled. Please contact support.',
-    'auth/too-many-requests': 'Too many login attempts. Please try again later.',
-    'auth/invalid-credential': 'Email or password is incorrect. Please try again.',
+    // Sign In errors (Abstracted to prevent user enumeration)
+    'auth/user-not-found': 'Authentication failed. Please check your credentials and try again.',
+    'auth/wrong-password': 'Authentication failed. Please check your credentials and try again.',
+    'auth/invalid-email': 'Invalid input provided. Please try again.',
+    'auth/user-disabled': 'Account access disabled. Please contact support.',
+    'auth/too-many-requests': 'Service temporarily busy. Please try again later.',
+    'auth/invalid-credential': 'Authentication failed. Please check your credentials and try again.',
 
-    // Sign Up errors
-    'auth/email-already-in-use': 'This email is already registered. Please sign in or use a different email.',
-    'auth/weak-password': 'Password should be at least 6 characters long.',
-    'auth/operation-not-allowed': 'Account creation is not available. Please try again later.',
+    // Sign Up errors (Abstracted to prevent user enumeration)
+    'auth/email-already-in-use': 'Registration failed. Please check your information or try signing in.',
+    'auth/weak-password': 'Invalid input provided. Please try again.',
+    'auth/operation-not-allowed': 'Service temporarily unavailable. Please try again later.',
 
     // Google Sign In errors
-    'auth/account-exists-with-different-credential': 'An account already exists with this email using a different sign-in method.',
-    'auth/popup-blocked': 'Popup blocked. Please allow popups and try again.',
-    'auth/popup-closed-by-user': 'Sign-in cancelled. Please try again.',
-    'auth/cancelled-popup-request': 'Sign-in cancelled. Please try again.',
+    'auth/account-exists-with-different-credential': 'Authentication failed. Please try a different sign-in method.',
+    'auth/popup-blocked': 'Authentication failed. Please allow popups and try again.',
+    'auth/popup-closed-by-user': 'Authentication cancelled. Please try again.',
+    'auth/cancelled-popup-request': 'Authentication cancelled. Please try again.',
 
     // Network errors
-    'auth/network-request-failed': 'Network connection error. Please check your internet and try again.',
+    'auth/network-request-failed': 'Connection error. Please check your internet and try again.',
   };
 
   // Check if we have a mapped error
@@ -40,23 +40,15 @@ export function getAuthErrorMessage(error: any): string {
 
   // Check for network errors
   if (errorMessage.includes('network') || errorMessage.includes('Network')) {
-    return 'Network connection error. Please check your internet and try again.';
+    return 'Connection error. Please check your internet and try again.';
   }
 
   // Check for timeout errors
   if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
-    return 'Request took too long. Please try again.';
+    return 'Request timeout. Please try again.';
   }
 
   // Generic fallback
-  if (error instanceof Error) {
-    // Don't expose the actual error message if it's too technical
-    const msg = error.message.toLowerCase();
-    if (msg.includes('firebase') || msg.includes('auth/')) {
-      return 'An error occurred during authentication. Please try again.';
-    }
-  }
-
   return 'An unexpected error occurred. Please try again.';
 }
 
@@ -64,14 +56,14 @@ export function getAPIErrorMessage(error: any, context: 'barcode' | 'product' | 
   const status = error?.status || error?.statusCode;
   const message = error?.message || '';
 
-  // Handle specific status codes
+  // Handle specific status codes abstractly
   const statusMap: { [key: number]: string } = {
-    400: 'Invalid request. Please check your input and try again.',
-    401: 'Authentication failed. Please sign in again.',
-    403: 'You do not have permission to perform this action.',
-    404: 'Resource not found. Please try again.',
-    429: 'Too many requests. Please wait a moment and try again.',
-    500: 'Server error. Please try again later.',
+    400: 'Invalid input provided. Please try again.',
+    401: 'Session expired or authentication failed. Please sign in again.',
+    403: 'Access denied.',
+    404: 'Requested information could not be found.',
+    429: 'Service temporarily busy. Please wait a moment.',
+    500: 'An unexpected error occurred. Please try again later.',
     503: 'Service temporarily unavailable. Please try again later.',
   };
 
@@ -81,14 +73,14 @@ export function getAPIErrorMessage(error: any, context: 'barcode' | 'product' | 
 
   // Context-specific messages
   const contextMessages = {
-    barcode: 'Could not read the barcode. Please try a different photo or enter the barcode manually.',
-    product: 'Could not find product information. Please try another product or enter details manually.',
-    general: 'An error occurred. Please try again.',
+    barcode: 'Unable to process barcode. Please try again or enter it manually.',
+    product: 'Product information unavailable. Please try again or enter details manually.',
+    general: 'An unexpected error occurred. Please try again.',
   };
 
   // Check for network errors
   if (message.includes('network') || message.includes('Network') || message.includes('fetch')) {
-    return 'Network connection error. Please check your internet and try again.';
+    return 'Connection error. Please check your internet and try again.';
   }
 
   return contextMessages[context];
@@ -97,7 +89,7 @@ export function getAPIErrorMessage(error: any, context: 'barcode' | 'product' | 
 export function getGeneralErrorMessage(error: any): string {
   if (!error) return 'An unexpected error occurred. Please try again.';
 
-  // Check for specific error types
+  // Check for specific error types abstractly
   if (error instanceof TypeError) {
     return 'An error occurred while processing. Please try again.';
   }
@@ -106,23 +98,23 @@ export function getGeneralErrorMessage(error: any): string {
     return 'An error occurred. Please try again.';
   }
 
-  // Check for Firebase errors
+  // Handle auth errors if applicable
   if (error.code?.includes('auth/')) {
     return getAuthErrorMessage(error);
   }
 
-  // Check message content
+  // Check message content for generic network or API failures
   const message = error?.message || '';
   if (message.includes('network') || message.includes('Network')) {
-    return 'Network connection error. Please check your internet and try again.';
+    return 'Connection error. Please check your internet and try again.';
   }
 
   if (message.includes('timeout')) {
-    return 'Request took too long. Please try again.';
+    return 'Request timeout. Please try again.';
   }
 
   if (message.includes('API') || message.includes('api')) {
-    return 'An error occurred. Please try again later.';
+    return 'Service unavailable. Please try again later.';
   }
 
   return 'An unexpected error occurred. Please try again.';

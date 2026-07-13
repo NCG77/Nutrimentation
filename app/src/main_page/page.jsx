@@ -537,13 +537,6 @@ function App() {
         
         <div className="header-menu">
           <button 
-            className="btn-preferences"
-            onClick={() => setShowPreferencesModal(!showPreferencesModal)}
-            title="Set dietary preferences"
-          >
-            ⚙️ Preferences
-          </button>
-          <button 
             className={`hamburger ${menuOpen ? 'active' : ''}`}
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Menu"
@@ -559,6 +552,17 @@ function App() {
                 <p className="username">{user?.displayName || 'User'}</p>
                 <p className="email">{user?.email}</p>
               </div>
+              <button 
+                className="btn-preferences"
+                onClick={() => {
+                  setShowPreferencesModal(!showPreferencesModal);
+                  setMenuOpen(false);
+                }}
+                title="Set dietary preferences"
+                style={{ width: '100%', marginBottom: '10px' }}
+              >
+                ⚙️ Preferences
+              </button>
               <button 
                 onClick={handleLogout}
                 className="logout-btn"
