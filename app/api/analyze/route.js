@@ -32,16 +32,10 @@ export async function POST(req) {
       model: "llama-3.3-70b-versatile",
       temperature: 0.3,
       max_tokens: 1024,
+      response_format: { type: "json_object" },
     });
 
-    const responseText = completion.choices[0].message.content;
-
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("Could not parse JSON from GROQ response");
-    }
-
-    const analysis = JSON.parse(jsonMatch[0]);
+    const analysis = JSON.parse(completion.choices[0].message.content);
 
     return Response.json({ analysis, success: true });
   } catch (error) {

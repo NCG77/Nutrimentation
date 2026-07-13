@@ -32,11 +32,10 @@ Return ONLY valid JSON:
       model: "llama-3.3-70b-versatile",
       temperature: 0.3,
       max_tokens: 800,
+      response_format: { type: "json_object" },
     });
 
-    const responseText = completion.choices[0].message.content;
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    return jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    return JSON.parse(completion.choices[0].message.content);
   } catch (error) {
     console.error("Error in personalization model:", error);
     return null;
@@ -76,11 +75,10 @@ Return ONLY valid JSON:
       model: "llama-3.3-70b-versatile",
       temperature: 0.3,
       max_tokens: 800,
+      response_format: { type: "json_object" },
     });
 
-    const responseText = completion.choices[0].message.content;
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    return jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    return JSON.parse(completion.choices[0].message.content);
   } catch (error) {
     console.error("Error in food facts model:", error);
     return null;
@@ -116,11 +114,10 @@ Return ONLY valid JSON:
       model: "llama-3.3-70b-versatile",
       temperature: 0.3,
       max_tokens: 800,
+      response_format: { type: "json_object" },
     });
 
-    const responseText = completion.choices[0].message.content;
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    return jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    return JSON.parse(completion.choices[0].message.content);
   } catch (error) {
     console.error("Error in web search model:", error);
     return null;

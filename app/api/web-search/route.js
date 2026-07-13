@@ -110,16 +110,10 @@ Important: Only include numbers for nutriment values. If units are mentioned (g,
       model: "llama-3.3-70b-versatile",
       temperature: 0.3,
       max_tokens: 1024,
+      response_format: { type: "json_object" },
     });
 
-    const responseText = result.choices[0].message.content.trim();
-
-    const cleanedText = responseText
-      .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "")
-      .trim();
-
-    const productData = JSON.parse(cleanedText);
+    const productData = JSON.parse(result.choices[0].message.content);
     return productData;
   } catch (error) {
     console.error("Error extracting product info with AI:", error.message);
